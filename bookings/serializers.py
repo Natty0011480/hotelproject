@@ -54,6 +54,16 @@ class RoomSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'hotel': {'write_only': True}  # Hide in output but needed for creation
         }
+class HotelDetailSerializer(serializers.ModelSerializer):
+    # this field comes from `related_name='rooms'` on Room.hotel
+    rooms = RoomSerializer(many=True, read_only=True)
+
+    class Meta:
+        model  = Hotel
+        fields = [
+          'id','name','location','description','has_pool','has_gym',
+          'price','is_active','featured_image','rooms'
+        ]
 
 class BookingSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(
