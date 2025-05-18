@@ -1,9 +1,5 @@
-
-# Register your models here.
-
 from django.contrib import admin
-from .models import Room, Booking, Review
-from .models import Hotel, User
+from .models import Room, Booking, Review, Hotel, User
 
 @admin.register(Hotel)
 class HotelAdmin(admin.ModelAdmin):
@@ -16,8 +12,8 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ('name', 'room_type', 'price', 'is_available')
-    list_filter = ('room_type', 'is_available')
+    list_display = ('name', 'price', 'is_available')  # Removed 'room_type'
+    list_filter = ('is_available',)  # Removed 'room_type'
     search_fields = ('name', 'description')
 
 @admin.register(Booking)

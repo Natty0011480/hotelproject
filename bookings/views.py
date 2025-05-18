@@ -10,10 +10,10 @@ from rest_framework import filters
 
 from .models import Hotel, Booking, Room
 from .serializers import (
-    HotelSerializer,
+    HotelListSerializer,
     HotelDetailSerializer,
-    BookingSerializer,
     RoomSerializer,
+    BookingSerializer,
     UserRegistrationSerializer
 )
 
@@ -21,8 +21,12 @@ User = get_user_model()
 
 
 class HotelListAPI(generics.ListAPIView):
-    serializer_class = HotelSerializer
+    """
+    GET /api/hotels/
+    List all active hotels (no price field in list).
+    """
     queryset = Hotel.objects.filter(is_active=True)
+    serializer_class = HotelListSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['location', 'has_pool']
 
@@ -30,9 +34,10 @@ class HotelListAPI(generics.ListAPIView):
 class HotelFilterAPI(generics.ListAPIView):
     """
     GET /api/hotels/filter/?location=…&has_pool=…&has_gym=…&price__gte=…&price__lte=…
+    Advanced hotel search.
     """
-    serializer_class = HotelSerializer
     queryset = Hotel.objects.filter(is_active=True)
+    serializer_class = HotelListSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = {
         'has_pool': ['exact'],
@@ -45,7 +50,7 @@ class HotelFilterAPI(generics.ListAPIView):
 class HotelDetailAPI(generics.RetrieveAPIView):
     """
     GET /api/hotels/<pk>/
-    Returns one hotel + its `rooms` array.
+    Retrieve hotel details including nested rooms.
     """
     queryset = Hotel.objects.filter(is_active=True)
     serializer_class = HotelDetailSerializer
@@ -55,7 +60,7 @@ class HotelDetailAPI(generics.RetrieveAPIView):
 class RoomListAPI(generics.ListAPIView):
     """
     GET /api/hotels/<hotel_id>/rooms/
-    Returns all available rooms for that hotel.
+    List available rooms for a specific hotel.
     """
     serializer_class = RoomSerializer
     permission_classes = [IsAuthenticated]
@@ -72,7 +77,7 @@ class RoomListAPI(generics.ListAPIView):
 def RoomBookedRangesAPI(request, room_id):
     """
     GET /api/rooms/<room_id>/booked_ranges/
-    Returns list of {"check_in","check_out"} for PENDING & COMPLETED bookings.
+    Returns list of date ranges where room is pending or completed.
     """
     qs = Booking.objects.filter(
         room_id=room_id,
@@ -84,7 +89,7 @@ def RoomBookedRangesAPI(request, room_id):
 class CreateBookingAPI(APIView):
     """
     POST /api/bookings/
-    Creates a new booking (status defaults to PENDING).
+    Create a new booking (status defaults to PENDING).
     """
     permission_classes = [IsAuthenticated]
 
@@ -107,20 +112,21 @@ class CreateBookingAPI(APIView):
 class RegisterUserAPI(generics.CreateAPIView):
     """
     POST /api/register/
-    Registers a new user.
+    Register a new user.
     """
     serializer_class = UserRegistrationSerializer
     queryset = User.objects.all()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# New “stays” endpoints:
+# Additional "stays" endpoints for all/single room
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class StayListAPI(generics.ListAPIView):
     """
     GET /api/stays/
-    Returns ALL rooms (regardless of availability).
+    Returns all rooms regardless of availability.
     """
     queryset = Room.objects.all().select_related('hotel')
     serializer_class = RoomSerializer
@@ -130,7 +136,7 @@ class StayListAPI(generics.ListAPIView):
 class StayDetailAPI(generics.RetrieveAPIView):
     """
     GET /api/stays/<pk>/
-    Returns one room’s details by ID.
+    Returns single room details by ID.
     """
     queryset = Room.objects.all().select_related('hotel')
     serializer_class = RoomSerializer
