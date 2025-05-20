@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from bookings.views import (
-    HotelListAPI, HotelFilterAPI, HotelDetailAPI,
+    HotelListAPI, HotelFilterAPI, RoomDetailAPI, HotelDetailAPI,
     RoomListAPI, RoomBookedRangesAPI,
     CreateBookingAPI, RegisterUserAPI,
     StayListAPI, StayDetailAPI,
@@ -24,6 +24,14 @@ urlpatterns = [
     # Rooms
     path('api/hotels/<int:hotel_id>/rooms/',       RoomListAPI.as_view(),        name='room-list'),
     path('api/rooms/<int:room_id>/booked_ranges/', RoomBookedRangesAPI,          name='room-booked-ranges'),
+
+     # List available rooms for a hotel
+    path('api/hotels/<uuid:hotel_uid>/rooms/',
+         RoomListAPI.as_view(), name='room-list'),
+
+    # ▷ NEW: single room detail nested under hotel
+    path('api/hotels/<uuid:hotel_uid>/rooms/<uuid:room_uid>/',
+         RoomDetailAPI.as_view(), name='room-detail'),
 
     # Bookings
     path('api/bookings/',      CreateBookingAPI.as_view(),  name='create-booking'),

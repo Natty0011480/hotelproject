@@ -84,6 +84,20 @@ def RoomBookedRangesAPI(request, room_id):
         status__in=[Booking.PENDING, Booking.COMPLETED]
     ).values('check_in', 'check_out')
     return Response(list(qs))
+class RoomDetailAPI(generics.RetrieveAPIView):
+    """
+    GET /api/hotels/{hotel_uid}/rooms/{room_uid}/
+    Retrieves one room (by its UID) belonging to the given hotel (by its UID).
+    """
+    serializer_class   = RoomSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field       = 'uid'
+    lookup_url_kwarg   = 'room_uid'
+
+    def get_queryset(self):
+        hotel_uid = self.kwargs['hotel_uid']
+        # Only return rooms belonging to that hotel
+        return Room.objects.filter(hotel__uid=hotel_uid)
 
 
 class CreateBookingAPI(APIView):

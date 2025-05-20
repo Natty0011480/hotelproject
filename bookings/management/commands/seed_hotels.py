@@ -13,6 +13,7 @@ HOTEL_NAMES = [
     "Shashemene Green Gardens", "Jimma Coffee House", "Jinka Valley Lodge",
     "Semera Desert Rose", "Negele Borana Eco Lodge"
 ]
+
 LOCATIONS = [
     "Addis Ababa, Ethiopia", "Lalibela, Ethiopia", "Axum, Ethiopia",
     "Simien Mountains, Ethiopia", "Omo Valley, Ethiopia", "Harar, Ethiopia",
@@ -21,28 +22,33 @@ LOCATIONS = [
     "Awash, Ethiopia", "Debre Zeit, Ethiopia", "Shashemene, Ethiopia",
     "Jimma, Ethiopia", "Jinka, Ethiopia", "Semera, Ethiopia", "Negele Borana, Ethiopia"
 ]
+
 POSSIBLE_AMENITIES = [
-    "Free WiFi","Pool","Gym","Spa","Restaurant","Bar","Parking",
-    "Airport Shuttle","Pet Friendly","Breakfast Included",
-    "Room Service","Laundry Service","24h Front Desk"
+    "Free WiFi", "Pool", "Gym", "Spa", "Restaurant", "Bar", "Parking",
+    "Airport Shuttle", "Pet Friendly", "Breakfast Included",
+    "Room Service", "Laundry Service", "24h Front Desk"
 ]
+
+BED_TYPES = ['SINGLE', 'QUEEN', 'KING']
 
 PROJECT_ROOT = settings.BASE_DIR
 MEDIA_IMAGES = os.path.join(PROJECT_ROOT, 'media', 'hotel_images')
 
+
 def find_image_path(name):
     slug = name.lower().replace(' ', '_')
-    for ext in ('jpg','jpeg','png','avif'):
+    for ext in ('jpg', 'jpeg', 'png', 'avif'):
         candidate = os.path.join(MEDIA_IMAGES, f"{slug}.{ext}")
         if os.path.exists(candidate):
             return candidate
     return None
 
+
 class Command(BaseCommand):
     help = "Seed hotels + rooms + attach images + set image_url"
 
     def handle(self, *args, **options):
-        # **Wipe existing** (optional)
+        # Wipe existing data (optional)
         Hotel.objects.all().delete()
         Room.objects.all().delete()
 
@@ -53,8 +59,8 @@ class Command(BaseCommand):
                 'description': f"A lovely stay at {name}.",
                 'has_pool': 'Pool' in amenities,
                 'has_gym': 'Gym' in amenities,
-                'price': round(random.uniform(50,300),2),
-                'stars': random.randint(1,5),
+                'price': round(random.uniform(50, 300), 2),
+                'stars': random.randint(1, 5),
                 'amenities': amenities,
                 'is_active': True,
             }
@@ -74,15 +80,17 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"No image found for {name}"))
 
             # Seed rooms
-            target = random.randint(1,5)
+            target = random.randint(1, 5)
             for i in range(target):
                 Room.objects.create(
                     hotel=hotel,
                     name=f"Room {i+1}",
                     description="Comfortable and spacious room.",
-                    bed_count=random.randint(1,3),
-                    price=round(random.uniform(30,200),2),
-                    capacity=random.choice([1,2,3,4]),
+                    bed_count=random.randint(1, 3),
+                    bathroom_count=random.randint(1, 2),   # New field
+                    bed_type=random.choice(BED_TYPES),     # New field
+                    price=round(random.uniform(30, 200), 2),
+                    capacity=random.choice([1, 2, 3, 4]),
                     is_available=True
                 )
             self.stdout.write(f" → {hotel.name} has {hotel.rooms.count()} rooms")
