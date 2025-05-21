@@ -1,12 +1,12 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
+from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
+import traceback
 
 from .models import Hotel, Booking, Room
 from .serializers import (
@@ -19,6 +19,7 @@ from .serializers import (
 
 User = get_user_model()
 
+# ───── Hotels ────────────────────────────────────────────────────────────────
 
 class HotelListAPI(generics.ListAPIView):
     """
@@ -49,79 +50,83 @@ class HotelFilterAPI(generics.ListAPIView):
 
 class HotelDetailAPI(generics.RetrieveAPIView):
     """
-    GET /api/hotels/<pk>/
+    GET /api/hotels/<uuid:uid>/
     Retrieve hotel details including nested rooms.
     """
     queryset = Hotel.objects.filter(is_active=True)
     serializer_class = HotelDetailSerializer
     permission_classes = [permissions.AllowAny]
+    lookup_field = 'uid'
 
 
-class RoomListAPI(generics.ListAPIView):
+# ───── Rooms ─────────────────────────────────────────────────────────────────
+
+class RoomListByUUIDAPI(generics.ListAPIView):
     """
-    GET /api/hotels/<hotel_id>/rooms/
-    List available rooms for a specific hotel.
+    GET /api/hotels/<uuid:hotel_uid>/rooms/
+    List all rooms for the hotel matching that UUID (public).
     """
     serializer_class = RoomSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        hotel_id = self.kwargs['hotel_id']
-        return Room.objects.filter(
-            hotel_id=hotel_id,
-            is_available=True
-        ).select_related('hotel')
+        hotel_uid = self.kwargs.get('hotel_uid')
+        return Room.objects.filter(hotel__uid=hotel_uid)
+
+
+class RoomDetailAPI(generics.RetrieveAPIView):
+    """
+    GET /api/hotels/<uuid:hotel_uid>/rooms/<uuid:room_uid>/
+    Retrieve one room by UID under a given hotel.
+    """
+    serializer_class = RoomSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'uid'
+    lookup_url_kwarg = 'room_uid'
+
+    def get_queryset(self):
+        hotel_uid = self.kwargs['hotel_uid']
+        return Room.objects.filter(hotel__uid=hotel_uid)
 
 
 @api_view(['GET'])
 def RoomBookedRangesAPI(request, room_id):
     """
     GET /api/rooms/<room_id>/booked_ranges/
-    Returns list of date ranges where room is pending or completed.
+    Returns date ranges of past or pending bookings for a room.
     """
     qs = Booking.objects.filter(
         room_id=room_id,
         status__in=[Booking.PENDING, Booking.COMPLETED]
     ).values('check_in', 'check_out')
     return Response(list(qs))
-class RoomDetailAPI(generics.RetrieveAPIView):
-    """
-    GET /api/hotels/{hotel_uid}/rooms/{room_uid}/
-    Retrieves one room (by its UID) belonging to the given hotel (by its UID).
-    """
-    serializer_class   = RoomSerializer
-    permission_classes = [permissions.AllowAny]
-    lookup_field       = 'uid'
-    lookup_url_kwarg   = 'room_uid'
 
-    def get_queryset(self):
-        hotel_uid = self.kwargs['hotel_uid']
-        # Only return rooms belonging to that hotel
-        return Room.objects.filter(hotel__uid=hotel_uid)
 
+# ───── Booking ───────────────────────────────────────────────────────────────
 
 class CreateBookingAPI(APIView):
     """
     POST /api/bookings/
-    Create a new booking (status defaults to PENDING).
+    Create a new booking; requires authentication.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        data = request.data.copy()
-        data['user'] = request.user.id
-        serializer = BookingSerializer(data=data, context={'request': request})
+        serializer = BookingSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            room = serializer.validated_data['room']
-            if not room.is_available:
+            try:
+                booking = serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError as e:
+                traceback.print_exc()  # for terminal debugging
                 return Response(
-                    {"error": "This room is not available"},
+                    {"detail": "A booking already exists for this room and date range."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+# ───── User Registration ─────────────────────────────────────────────────────
 
 class RegisterUserAPI(generics.CreateAPIView):
     """
@@ -132,10 +137,7 @@ class RegisterUserAPI(generics.CreateAPIView):
     queryset = User.objects.all()
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Additional "stays" endpoints for all/single room
-# ──────────────────────────────────────────────────────────────────────────────
-
+# ───── Stays (all rooms) ─────────────────────────────────────────────────────
 
 class StayListAPI(generics.ListAPIView):
     """
@@ -149,9 +151,11 @@ class StayListAPI(generics.ListAPIView):
 
 class StayDetailAPI(generics.RetrieveAPIView):
     """
-    GET /api/stays/<pk>/
-    Returns single room details by ID.
+    GET /api/stays/<uuid:uid>/
+    Returns single room details by its UUID.
     """
     queryset = Room.objects.all().select_related('hotel')
     serializer_class = RoomSerializer
     permission_classes = [permissions.AllowAny]
+    lookup_field = 'uid'
+    lookup_url_kwarg = 'uid'

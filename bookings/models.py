@@ -3,11 +3,16 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
+    email    = models.EmailField(unique=True)
     is_admin = models.BooleanField(default=False)
     phone    = models.CharField(max_length=20, blank=True, null=True)
 
+    # tell Django to use email instead of username
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
 class Hotel(models.Model):
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     name           = models.CharField(max_length=200)
     location       = models.CharField(max_length=100)
     description    = models.TextField(blank=True)
@@ -27,7 +32,7 @@ class Hotel(models.Model):
         return self.name
 
 class Room(models.Model):
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     hotel         = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='rooms')
     name          = models.CharField(max_length=100)
     description   = models.TextField(blank=True)
@@ -48,7 +53,7 @@ class Room(models.Model):
         return self.name
 
 class Booking(models.Model):
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     PENDING     = 'PENDING'; COMPLETED = 'COMPLETED'; CANCELLED = 'CANCELLED'
     STATUS_CHOICES = [(PENDING,'Pending'), (COMPLETED,'Completed'), (CANCELLED,'Cancelled')]
 
@@ -62,13 +67,14 @@ class Booking(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('room','check_in','check_out')
+        # unique_together = ('room','check_in','check_out')
 
-    def __str__(self):
-        return f"Booking #{self.uid}"
+        # def __str__(self):
+        #   return f"Booking #{self.uid}"
+        pass
 
 class Review(models.Model):
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     user       = models.ForeignKey(User, on_delete=models.CASCADE)
     room       = models.ForeignKey(Room, on_delete=models.CASCADE)
     rating     = models.PositiveSmallIntegerField()
