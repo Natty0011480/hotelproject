@@ -24,6 +24,7 @@ from bookings.auth import EmailTokenObtainPairView
 urlpatterns = [
     path('', RedirectView.as_view(url='api/hotels/')),
     path('admin/', admin.site.urls),
+    path('payment/', include('payment.urls')),  # Include bookings app URLs
 
     # Hotels
     path('api/hotels/',        HotelListAPI.as_view(),      name='hotel-list'),
@@ -37,7 +38,7 @@ urlpatterns = [
         name='room-list-by-uuid'
     ),
 
-    path('api/rooms/<int:room_id>/booked_ranges/', RoomBookedRangesAPI,          name='room-booked-ranges'),
+    path('api/rooms/<int:room_id>/booked_ranges/', RoomBookedRangesAPI, name='room-booked-ranges'),
     path('api/hotels/<uuid:uid>/',     HotelDetailAPI.as_view(), name='hotel-detail-uuid'),
     path('api/hotels/<uuid:uid>/', HotelDetailAPI.as_view(), name='hotel-detail'),
 
@@ -62,6 +63,8 @@ urlpatterns = [
     # Stays (all rooms / single room)
     path('api/stays/',         StayListAPI.as_view(),       name='stay-list'),
     path('api/stays/<uuid:uid>/', StayDetailAPI.as_view(), name='stay-detail'),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 if settings.DEBUG:

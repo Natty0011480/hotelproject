@@ -1,6 +1,8 @@
+from datetime import timezone
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 from .models import Hotel, Room, Booking, User
+from django.utils import timezone
 
 # Serializers for Hotel
 class HotelListSerializer(serializers.ModelSerializer):
@@ -89,34 +91,47 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['uid', 'status', 'user', 'created_at']
 
+    
+
     def validate(self, data):
         check_in = data.get('check_in')
         check_out = data.get('check_out')
         room = data.get('room')
 
         if check_in and check_out:
+            # Normalize date format
+            check_in = check_in if isinstance(check_in, date) else check_in.date()
+            check_out = check_out if isinstance(check_out, date) else check_out.date()
+
             if check_in >= check_out:
                 raise serializers.ValidationError({'check_out': 'Check-out must be after check-in.'})
 
-            if check_in < timezone.now().date():
+            if check_in < now().date():
                 raise serializers.ValidationError({'check_in': 'Check-in cannot be in the past.'})
 
         if room:
-            # Check overlapping bookings
             overlapping = Booking.objects.filter(
                 room=room,
-                check_in__lt=check_out,
-                check_out__gt=check_in,
+                check_in__lt=check_out,   # Existing booking starts before this booking ends
+                check_out__gt=check_in,   # Existing booking ends after this booking starts
                 status__in=[Booking.PENDING, Booking.COMPLETED]
             )
+
+            if self.instance:
+                overlapping = overlapping.exclude(pk=self.instance.pk)
+
             if overlapping.exists():
                 raise serializers.ValidationError("This room is already booked for the selected dates.")
 
-            # Check availability
             if not room.is_available:
                 raise serializers.ValidationError({'room': 'This room is not currently available.'})
+        else:
+            raise serializers.ValidationError({'room': 'Room must be specified.'})
 
         return data
+
+
+
 
     def create(self, validated_data):
         # Automatically assign the current user
